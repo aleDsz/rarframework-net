@@ -11,18 +11,22 @@ Através do pacote dbConnection, é possível realizar uma conexão com vários 
 Neste caso, uma classe deve seguir o seguinte modelo:
 
 ```csharp
-ClasseTeste <- methods::setRefClass(
-    
-    # Nome da Tabela
-    "nome_do_campo",
-    
-    # Campos da Tabela
-    fields = list(
-        # Aqui você precisa informar o tipo do
-        # campo no banco de dados, seguindo os tipos de dados do R
-        nome_do_campo = "character"
-    ) 
-)
+using System;
+using System.Data;
+using RAR.Framework.Customization.Data;
+
+namespace Test.Entities
+{
+    [DbTable("nome_da_tabela")]
+    public class Teste
+    {
+        [DbColumn("nome_do_campo", DbType.Int32, IsPK = true)]
+        public Int32 Campo { get; set; }
+
+        [DbColumn("nome_do_campo2", DbType.StringFixedLength, Size = 30)]
+        public String Campo2 { get; set; }
+    }
+}
 ```
 
 ## 3. Como Utilizar
@@ -30,79 +34,149 @@ ClasseTeste <- methods::setRefClass(
 Para que você possa utilizar todos as funcionalidades do framework no seu ambiente, você pode criar 1 (ou mais, dependendo da sua forma de trabalho) classe para acessar ao banco de dados de forma genérica.
 
 ```csharp
-ModelDataAccess <- methods::setRefClass(
-    "ModelDataAccess",
+using System;
+using System.Collections.Generic;
+using RAR.Framework.Database.Command;
+using RAR.Framework.Database.Data;
+using RAR.Framework.Database.Enums;
+using RAR.Framework.Database.Objects;
+using RAR.Framework.Database.SQL;
 
-    methods = list(
-
-        initialize = function() {
-            tryCatch({
-                databaseFactory <- rarframeworkR:::DatabaseFactory$new()
-                databaseFactory$getDataContextInstance()
-            }, error = function (ex) {
-                stop (ex$message)
-            })
-        },
-
-        create = function(obj) {
-            tryCatch({
-                sqlStatement   <- rarframeworkR:::SqlStatementInsert$new(obj);
-                commandContext <- rarframeworkR:::CommandContext$new(sqlStatement$getSql());
-                
-                commandContext$executeQuery()
-            }, error = function (ex) {
-                stop (ex$message)
-            })
-        },
-        
-        save = function(obj) {
-            tryCatch({
-                sqlStatement   <- rarframeworkR:::SqlStatementUpdate$new(obj);
-                commandContext <- CrarframeworkR:::ommandContext$new(sqlStatement$getSql());
-                
-                commandContext$executeQuery()
-            }, error = function (ex) {
-                stop (ex$message)
-            })
-        },
-        
-        find = function(obj) {
-            tryCatch({
-                sqlStatement   <- rarframeworkR:::SqlStatementSelect$new(obj);
-                objContext     <- rarframeworkR:::ObjectContext$new(obj);
-                commandContext <- rarframeworkR:::CommandContext$new(sqlStatement$getSql(FALSE));
-                
-                return (objContext$getObject(commandContext$executeReader()))
-            }, error = function (ex) {
-                stop (ex$message)
-            })
-        },
-
-        findAll = function(obj) {
-            tryCatch({
-                sqlStatement   <- rarframeworkR:::SqlStatementSelect$new(obj);
-                objContext     <- rarframeworkR:::ObjectContext$new(obj);
-                commandContext <- rarframeworkR:::CommandContext$new(sqlStatement$getSql(TRUE));
-                
-                return (objContext$getObjects(commandContext$executeReader()))
-            }, error = function (ex) {
-                stop (ex$message)
-            })
-        },
-        
-        remove = function(obj) {
-            tryCatch({
-                sqlStatement   <- rarframeworkR:::SqlStatementDelete$new(obj);
-                commandContext <- rarframeworkR:::CommandContext$new(sqlStatement$getSql());
-                
-                commandContext$executeQuery()
-            }, error = function (ex) {
-                stop (ex$message)
-            })
+namespace Test.DataAccess
+{
+    public class ModelDataAccess<T>
+    {
+        public ModelDataAccess()
+        {
         }
 
-    )
-)
+        public void Create(T obj, Boolean isTransactioned)
+        {
+            try
+            {
+                var context = Factory<T>.GetInstance<T>(obj);
+                var ssql = new SQLStatementInsert<T>(obj);
+
+                context.Begin();
+
+                using (var cmd = new CommandContext(ssql.GetSQL(), context))
+                {
+                    cmd.ExecuteQuery();
+
+                    context.Commit();
+                }
+
+                 Factory<T>.DestroyInstance<T>(obj);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+
+        public void Save(T obj)
+        {
+            try
+            {
+                var context = Factory<T>.GetInstance<T>(obj);
+                var ssql = new SQLStatementUpdate<T>(obj);
+
+                context.Begin();
+
+                using (var cmd = new CommandContext(ssql.GetSQL(), context))
+                {
+                    cmd.ExecuteQuery();
+
+                    context.Commit();
+                }
+
+                Factory<T>.DestroyInstance<T>(obj);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+
+        public void Remove(T obj)
+        {
+            try
+            {
+                var context = Factory<T>.GetInstance<T>(obj);
+                var ssql = new SQLStatementDelete<T>(obj);
+
+                context.Begin(System.Data.IsolationLevel.ReadUncommitted);
+
+                using (var cmd = new CommandContext(ssql.GetSQL(), context))
+                {
+                    cmd.ExecuteQuery();
+
+                    context.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+
+        public Object Find(T obj)
+        {
+            Object objRetorno;
+            try
+            {
+                var context = Factory<T>.GetInstance<T>(obj);
+                var ssql = new SQLStatementSelect<Object>(obj);
+
+                context.Begin(System.Data.IsolationLevel.ReadUncommitted);
+
+                using (var cmd = new CommandContext(ssql.GetSQL(TiposSelect.ByKey), context))
+                {
+                    var ObjectContext = new ObjectContext<Object>(obj);
+                    objRetorno = ObjectContext.GetObject<Object>(cmd.ExecuteReader());
+
+                    context.Commit();
+                }
+
+                return objRetorno;
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+
+        public List<Object> FindAll(Object obj)
+        {
+            List<Object> retorno = null;
+
+            if (obj == null)
+                obj = new Object();
+
+            try
+            {
+                var context = DatabaseFactory.DataContext();
+                var ssql = new SQLStatementSelect<Object>(obj);
+
+                context.Begin(System.Data.IsolationLevel.ReadUncommitted);
+
+                using (var cmd = new CommandContext(ssql.GetSQL(TiposSelect.All), context))
+                {
+                    var ObjectContext = new ObjectContext<Object>(obj);
+                    retorno = ObjectContext.GetObjects<Object>(cmd.ExecuteReader());
+
+                    context.Commit();
+                }
+
+                return retorno;
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+    }
+}
 ```
 
 **OBS.:** Você não precisa criar a classe de forma genérica, você pode criar uma classe de acesso a dados para cada entidade que você criar no modelo citado acima.

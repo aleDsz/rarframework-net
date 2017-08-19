@@ -54,7 +54,7 @@ namespace Test.DataAccess
         {
             try
             {
-                var context = Factory<T>.GetInstance<T>(obj);
+                var context = DatabaseFactory.DataContext();
                 var ssql = new SQLStatementInsert<T>(obj);
 
                 context.Begin();
@@ -78,7 +78,7 @@ namespace Test.DataAccess
         {
             try
             {
-                var context = Factory<T>.GetInstance<T>(obj);
+                var context = DatabaseFactory.DataContext();
                 var ssql = new SQLStatementUpdate<T>(obj);
 
                 context.Begin();
@@ -102,7 +102,7 @@ namespace Test.DataAccess
         {
             try
             {
-                var context = Factory<T>.GetInstance<T>(obj);
+                var context = DatabaseFactory.DataContext();
                 var ssql = new SQLStatementDelete<T>(obj);
 
                 context.Begin(System.Data.IsolationLevel.ReadUncommitted);
@@ -125,7 +125,7 @@ namespace Test.DataAccess
             Object objRetorno;
             try
             {
-                var context = Factory<T>.GetInstance<T>(obj);
+                var context = DatabaseFactory.DataContext();
                 var ssql = new SQLStatementSelect<Object>(obj);
 
                 context.Begin(System.Data.IsolationLevel.ReadUncommitted);

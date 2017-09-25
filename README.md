@@ -13,7 +13,7 @@ Neste caso, uma classe deve seguir o seguinte modelo:
 ```csharp
 using System;
 using System.Data;
-using RAR.Framework.Customization.Data;
+using RAR.Framework.Database.Objects;
 
 namespace Test.Entities
 {

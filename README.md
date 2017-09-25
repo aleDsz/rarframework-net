@@ -20,7 +20,7 @@ namespace Test.Entities
     [DbTable("nome_da_tabela")]
     public class Teste
     {
-        [DbColumn("nome_do_campo", DbType.Int32, IsPK = true)]
+        [DbColumn("nome_do_campo", DbType.Int32, PrimaryKey = true)]
         public Int32 Campo { get; set; }
 
         [DbColumn("nome_do_campo2", DbType.StringFixedLength, Size = 30)]
@@ -65,8 +65,6 @@ namespace Test.DataAccess
 
                     context.Commit();
                 }
-
-                 Factory<T>.DestroyInstance<T>(obj);
             }
             catch (Exception ex)
             {
@@ -89,8 +87,6 @@ namespace Test.DataAccess
 
                     context.Commit();
                 }
-
-                Factory<T>.DestroyInstance<T>(obj);
             }
             catch (Exception ex)
             {
